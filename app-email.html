@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email | Nexus Admin</title>
+  <script>try{document.documentElement.dataset.bsTheme=localStorage.getItem('nexus-theme')||'light'}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="assets/css/app.css" rel="stylesheet">
+</head>
+<body>
+<main class="content">
+  <div class="card app-email" id="emailApp">
+    <aside class="email-sidebar" aria-label="Mail folders">
+      <div class="p-4"><button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#composeModal"><i class="bx bx-edit me-1"></i>Compose</button></div>
+      <nav id="folders"></nav>
+      <div class="text-muted text-uppercase small px-4 mt-4 mb-2">Labels</div>
+      <nav id="labels" class="pb-4"></nav>
+    </aside>
+
+    <div class="email-main">
+      <!-- List view -->
+      <div id="listView" class="d-flex flex-column h-100">
+        <div class="d-flex align-items-center gap-2 px-3 py-2 border-bottom">
+          <button type="button" class="icon-btn d-lg-none" data-toggle-sidebar aria-label="Show folders"><i class="bx bx-menu"></i></button>
+          <i class="bx bx-search fs-4 text-muted"></i>
+          <input type="search" id="emailSearch" class="form-control border-0 shadow-none bg-transparent" placeholder="Search mail" aria-label="Search mail">
+        </div>
+        <div class="d-flex align-items-center gap-1 px-3 py-2 border-bottom">
+          <input type="checkbox" class="form-check-input me-2" id="selectAll" aria-label="Select all">
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-bulk="read" title="Mark as read" aria-label="Mark as read"><i class="bx bx-envelope-open"></i></button>
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-bulk="spam" title="Report spam" aria-label="Report spam"><i class="bx bx-error-alt"></i></button>
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-bulk="delete" title="Delete" aria-label="Delete selected"><i class="bx bx-trash"></i></button>
+          <small class="ms-auto text-muted" id="emailCount"></small>
+        </div>
+        <div class="email-list" id="emailList"></div>
+      </div>
+
+      <!-- Detail view -->
+      <div id="detailView" class="d-flex flex-column h-100 d-none">
+        <div class="d-flex align-items-center gap-2 px-3 py-3 border-bottom">
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-back aria-label="Back to list"><i class="bx bx-chevron-left"></i></button>
+          <h6 class="mb-0 flex-grow-1 text-truncate" id="dSubject"></h6>
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-d="star" aria-label="Star"><i class="bx bx-star"></i></button>
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-d="unread" title="Mark unread" aria-label="Mark unread"><i class="bx bx-envelope"></i></button>
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-d="delete" title="Delete" aria-label="Delete"><i class="bx bx-trash"></i></button>
+        </div>
+        <div class="email-view">
+          <div class="card mb-4"><div class="card-body">
+            <div class="d-flex align-items-center gap-3 mb-4 flex-wrap" id="dFrom"></div>
+            <div id="dBody"></div>
+          </div></div>
+          <div class="card"><div class="card-body">
+            <form id="replyForm" novalidate>
+              <label class="form-label" for="replyText" id="replyLabel">Reply</label>
+              <textarea class="form-control mb-3" id="replyText" rows="4" placeholder="Write your message..." required></textarea>
+              <button class="btn btn-primary" type="submit"><i class="bx bx-paper-plane me-1"></i>Send</button>
+            </form>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Compose -->
+<div class="modal fade" id="composeModal" tabindex="-1" aria-labelledby="composeTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form class="modal-content" id="composeForm" novalidate>
+      <div class="modal-header"><h5 class="modal-title" id="composeTitle">Compose Mail</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label" for="cTo">To</label><input type="email" class="form-control" id="cTo" placeholder="name@example.com" required><div class="invalid-feedback">Enter a valid email address.</div></div>
+        <div class="mb-3"><label class="form-label" for="cSubject">Subject</label><input class="form-control" id="cSubject" required><div class="invalid-feedback">Subject is required.</div></div>
+        <div><label class="form-label" for="cBody">Message</label><textarea class="form-control" id="cBody" rows="6"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-label-secondary" id="saveDraft">Save draft</button>
+        <button type="submit" class="btn btn-primary"><i class="bx bx-paper-plane me-1"></i>Send</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+(() => {
+  const FOLDERS = [['inbox', 'Inbox', 'bx-envelope'], ['sent', 'Sent', 'bx-send'], ['draft', 'Draft', 'bx-edit'], ['starred', 'Starred', 'bx-star'], ['spam', 'Spam', 'bx-error-alt'], ['trash', 'Trash', 'bx-trash']];
+  const LABELS = { personal: 'success', company: 'primary', important: 'warning', private: 'danger' };
+  const app = document.getElementById('emailApp');
+  const listEl = document.getElementById('emailList');
+  const listView = document.getElementById('listView');
+  const detailView = document.getElementById('detailView');
+  const esc = U.esc;
+  let emails = Store.get('emails');
+  let folder = 'inbox';
+  let label = null;
+  let query = '';
+  let openId = null;
+  const save = () => Store.set('emails', emails);
+  const byId = id => emails.find(e => e.id === id);
+
+  const inView = e => {
+    if (label) return e.label === label && e.folder !== 'trash';
+    if (folder === 'starred') return e.starred && e.folder !== 'trash';
+    return e.folder === folder;
+  };
+  const visible = () => emails
+    .filter(e => inView(e) && (!query || `${e.from} ${e.subject} ${e.body}`.toLowerCase().includes(query)))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  const when = iso => {
+    const d = new Date(iso);
+    return d.toDateString() === new Date().toDateString()
+      ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  function renderNav() {
+    const count = f => f === 'inbox' ? emails.filter(e => e.folder === 'inbox' && !e.read).length
+      : f === 'draft' || f === 'spam' ? emails.filter(e => e.folder === f).length : 0;
+    document.getElementById('folders').innerHTML = FOLDERS.map(([key, name, icon]) => {
+      const n = count(key);
+      return `<a href="#" class="email-folder ${!label && folder === key ? 'active' : ''}" data-folder="${key}"><i class="bx ${icon}"></i><span class="flex-grow-1">${name}</span>${n ? `<span class="badge rounded-pill bg-label-${key === 'inbox' ? 'primary' : key === 'spam' ? 'danger' : 'warning'}">${n}</span>` : ''}</a>`;
+    }).join('');
+    document.getElementById('labels').innerHTML = Object.entries(LABELS).map(([key, color]) =>
+      `<a href="#" class="email-folder ${label === key ? 'active' : ''}" data-label="${key}"><span class="badge-dot rounded-circle bg-${color}" style="width:.6rem;height:.6rem"></span><span class="text-capitalize">${key}</span></a>`).join('');
+  }
+
+  function renderList() {
+    const list = visible();
+    document.getElementById('emailCount').textContent = `${list.length} message${list.length === 1 ? '' : 's'}`;
+    document.getElementById('selectAll').checked = false;
+    listEl.innerHTML = list.length ? list.map(e => `
+      <div class="email-item ${e.read ? 'read' : ''}" data-id="${e.id}">
+        <input type="checkbox" class="form-check-input email-check" aria-label="Select message from ${esc(e.from)}">
+        <button type="button" class="btn p-0 border-0 email-star ${e.starred ? 'starred' : ''}" data-star aria-label="${e.starred ? 'Unstar' : 'Star'}"><i class="bx ${e.starred ? 'bxs-star' : 'bx-star'}"></i></button>
+        ${U.avatar(e.from, 'avatar-sm')}
+        <div class="flex-grow-1 d-flex flex-column flex-md-row gap-md-3" style="min-width:0">
+          <span class="email-from text-heading text-nowrap">${e.folder === 'sent' || e.folder === 'draft' ? 'To: ' : ''}${esc(e.from)}</span>
+          <span class="email-subject">${esc(e.subject)} <span class="text-muted fw-normal d-none d-md-inline">— ${esc(e.body)}</span></span>
+        </div>
+        <span class="rounded-circle bg-${LABELS[e.label]} flex-shrink-0" style="width:.5rem;height:.5rem" title="${e.label}"></span>
+        <small class="text-nowrap text-muted" style="min-width:3.5rem;text-align:right">${when(e.date)}</small>
+      </div>`).join('')
+      : '<div class="text-center text-muted py-5"><i class="bx bx-envelope fs-1 d-block mb-2"></i>No messages here</div>';
+  }
+
+  function render() { renderNav(); renderList(); }
+
+  function openEmail(id) {
+    const e = byId(id);
+    if (!e) return;
+    openId = id;
+    e.read = true;
+    save();
+    document.getElementById('dSubject').innerHTML = `${esc(e.subject)} <span class="badge bg-label-${LABELS[e.label]} text-capitalize ms-1">${e.label}</span>`;
+    document.getElementById('dFrom').innerHTML = `${U.avatar(e.from)}<div class="flex-grow-1"><div class="text-heading fw-medium">${esc(e.from)}</div><small class="text-muted">${esc(e.email)}</small></div><small class="text-muted">${new Date(e.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</small>`;
+    document.getElementById('dBody').innerHTML = `<p>Hi ${esc(Store.get('profile').firstName)},</p><p>${esc(e.body)}</p><p class="mb-0">Best regards,<br>${esc(e.from)}</p>`;
+    document.getElementById('replyLabel').textContent = `Reply to ${e.from}`;
+    syncStar(e);
+    listView.classList.add('d-none');
+    detailView.classList.remove('d-none');
+    renderNav();
+  }
+  const syncStar = e => { detailView.querySelector('[data-d="star"] i').className = `bx ${e.starred ? 'bxs-star text-warning' : 'bx-star'}`; };
+  const closeEmail = () => { openId = null; detailView.classList.add('d-none'); listView.classList.remove('d-none'); render(); };
+
+  async function remove(ids) {
+    const inTrash = ids.every(id => byId(id)?.folder === 'trash');
+    if (inTrash) {
+      if (!(await U.confirm(`${ids.length} message(s) will be permanently deleted.`))) return false;
+      emails = emails.filter(e => !ids.includes(e.id));
+    } else {
+      ids.forEach(id => { byId(id).folder = 'trash'; });
+    }
+    save();
+    U.toast(inTrash ? 'Deleted permanently' : 'Moved to trash');
+    return true;
+  }
+
+  // Sidebar navigation
+  app.querySelector('.email-sidebar').addEventListener('click', e => {
+    const link = e.target.closest('[data-folder],[data-label]');
+    if (!link) return;
+    e.preventDefault();
+    if (link.dataset.folder) { folder = link.dataset.folder; label = null; } else { label = link.dataset.label; }
+    app.classList.remove('sidebar-show');
+    closeEmail();
+  });
+  app.querySelector('[data-toggle-sidebar]').addEventListener('click', () => app.classList.toggle('sidebar-show'));
+
+  // List interactions
+  listEl.addEventListener('click', e => {
+    const row = e.target.closest('.email-item');
+    if (!row || e.target.closest('.email-check')) return;
+    const id = Number(row.dataset.id);
+    if (e.target.closest('[data-star]')) {
+      byId(id).starred = !byId(id).starred;
+      save();
+      renderList();
+      return;
+    }
+    openEmail(id);
+  });
+  document.getElementById('emailSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderList(); });
+  document.getElementById('selectAll').addEventListener('change', e => listEl.querySelectorAll('.email-check').forEach(c => { c.checked = e.target.checked; }));
+
+  listView.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-bulk]');
+    if (!btn) return;
+    const ids = [...listEl.querySelectorAll('.email-check:checked')].map(c => Number(c.closest('.email-item').dataset.id));
+    if (!ids.length) { U.toast('Select at least one message', 'warning'); return; }
+    if (btn.dataset.bulk === 'read') { ids.forEach(id => { byId(id).read = true; }); save(); U.toast('Marked as read'); }
+    if (btn.dataset.bulk === 'spam') { ids.forEach(id => { byId(id).folder = 'spam'; }); save(); U.toast('Moved to spam'); }
+    if (btn.dataset.bulk === 'delete') await remove(ids);
+    render();
+  });
+
+  // Detail actions
+  detailView.addEventListener('click', async e => {
+    if (e.target.closest('[data-back]')) { closeEmail(); return; }
+    const btn = e.target.closest('[data-d]');
+    if (!btn) return;
+    const mail = byId(openId);
+    if (btn.dataset.d === 'star') { mail.starred = !mail.starred; save(); syncStar(mail); }
+    if (btn.dataset.d === 'unread') { mail.read = false; save(); closeEmail(); }
+    if (btn.dataset.d === 'delete' && await remove([openId])) closeEmail();
+  });
+
+  document.getElementById('replyForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const text = document.getElementById('replyText');
+    if (!text.value.trim()) { text.classList.add('is-invalid'); return; }
+    text.classList.remove('is-invalid');
+    const orig = byId(openId);
+    emails.push({ id: Store.nextId(emails), from: orig.from, email: orig.email, subject: `Re: ${orig.subject}`, body: text.value.trim(), date: new Date().toISOString(), folder: 'sent', label: orig.label, read: true, starred: false });
+    save();
+    text.value = '';
+    U.toast('Reply sent');
+  });
+
+  // Compose
+  const composeForm = document.getElementById('composeForm');
+  const composeModal = bootstrap.Modal.getOrCreateInstance('#composeModal');
+  const addOutgoing = folderName => {
+    const to = document.getElementById('cTo').value.trim();
+    emails.push({
+      id: Store.nextId(emails), from: to.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || to, email: to,
+      subject: document.getElementById('cSubject').value.trim() || '(no subject)', body: document.getElementById('cBody').value.trim(),
+      date: new Date().toISOString(), folder: folderName, label: 'personal', read: true, starred: false
+    });
+    save();
+    composeForm.reset();
+    composeForm.classList.remove('was-validated');
+    composeModal.hide();
+    render();
+  };
+  composeForm.addEventListener('submit', e => {
+    e.preventDefault();
+    if (!composeForm.checkValidity()) { composeForm.classList.add('was-validated'); return; }
+    addOutgoing('sent');
+    U.toast('Message sent');
+  });
+  document.getElementById('saveDraft').addEventListener('click', () => {
+    if (!document.getElementById('cTo').value.trim()) { U.toast('Add a recipient to save a draft', 'warning'); return; }
+    addOutgoing('draft');
+    U.toast('Draft saved', 'info');
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

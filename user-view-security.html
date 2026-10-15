@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>User Security | Nexus Admin</title>
+  <script>try{document.documentElement.dataset.bsTheme=localStorage.getItem('nexus-theme')||'light'}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="assets/css/app.css" rel="stylesheet">
+</head>
+<body>
+<main class="content">
+  <div class="row g-4">
+    <div class="col-xl-4 col-lg-5"><div class="card" id="userCard"></div></div>
+    <div class="col-xl-8 col-lg-7">
+      <ul class="nav nav-pills mb-4">
+        <li class="nav-item"><a class="nav-link" data-user-tab="user-view-account.html"><i class="bx bx-user"></i>Account</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" data-user-tab="user-view-security.html"><i class="bx bx-lock-alt"></i>Security</a></li>
+      </ul>
+
+      <div class="card mb-4">
+        <div class="card-header"><h5 class="card-title">Change Password</h5></div>
+        <div class="card-body">
+          <form id="passwordForm" novalidate>
+            <div class="alert alert-warning bg-label-warning mb-4">
+              <h6 class="alert-heading mb-1 text-warning">Ensure that these requirements are met</h6>
+              <span>Minimum 8 characters long, uppercase &amp; symbol</span>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="newPassword">New Password</label>
+                <div class="input-group has-validation">
+                  <input type="password" class="form-control" id="newPassword" required minlength="8" pattern="(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}" autocomplete="new-password">
+                  <button class="btn btn-label-secondary" type="button" data-show="newPassword" aria-label="Show password"><i class="bx bx-hide"></i></button>
+                  <div class="invalid-feedback">At least 8 characters with an uppercase letter and a symbol.</div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="confirmPassword">Confirm New Password</label>
+                <div class="input-group has-validation">
+                  <input type="password" class="form-control" id="confirmPassword" required autocomplete="new-password">
+                  <button class="btn btn-label-secondary" type="button" data-show="confirmPassword" aria-label="Show password"><i class="bx bx-hide"></i></button>
+                  <div class="invalid-feedback">Passwords must match.</div>
+                </div>
+              </div>
+              <div class="col-12"><button type="submit" class="btn btn-primary">Change Password</button></div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header"><h5 class="card-title">Two-steps verification</h5><small class="text-muted">Keep the account secure with an authentication step.</small></div>
+        <div class="card-body">
+          <h6 class="mb-1">SMS</h6>
+          <div class="d-flex gap-2 align-items-center mb-3">
+            <input class="form-control" id="twoFaPhone" readonly>
+            <button class="btn btn-icon btn-label-secondary" type="button" id="twoFaToggle" aria-label="Toggle two-step verification"><i class="bx bx-power-off"></i></button>
+          </div>
+          <p class="mb-0" id="twoFaStatus"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h5 class="card-title">Recent Devices</h5></div>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Browser</th><th>Device</th><th>Location</th><th>Recent activity</th></tr></thead>
+            <tbody id="devices"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/layout.js"></script>
+<script src="assets/js/user-view.js"></script>
+<script>
+(() => {
+  const { user } = UserView;
+  const $ = id => document.getElementById(id);
+
+  // Password form (demo — validates and confirms, nothing is sent)
+  const form = $('passwordForm');
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    $('confirmPassword').setCustomValidity($('confirmPassword').value !== $('newPassword').value ? 'mismatch' : '');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    form.reset();
+    form.classList.remove('was-validated');
+    U.toast(`Password changed for ${user.name}`);
+  });
+  form.addEventListener('click', e => {
+    const btn = e.target.closest('[data-show]');
+    if (!btn) return;
+    const input = $(btn.dataset.show);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.firstElementChild.className = `bx ${show ? 'bx-show' : 'bx-hide'}`;
+    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  });
+
+  // Two-step verification flag stored per user
+  const key = `2fa-${user.id}`;
+  const render2fa = () => {
+    const on = Store.pref(key) === '1';
+    $('twoFaPhone').value = user.phone;
+    $('twoFaToggle').className = `btn btn-icon ${on ? 'btn-label-success' : 'btn-label-secondary'}`;
+    $('twoFaStatus').innerHTML = on
+      ? '<span class="text-success fw-medium">Enabled.</span> A code will be sent by SMS at sign-in.'
+      : 'Two-factor authentication adds an additional layer of security. <span class="text-muted">Currently disabled.</span>';
+  };
+  $('twoFaToggle').addEventListener('click', () => {
+    const on = Store.pref(key) !== '1';
+    Store.pref(key, on ? '1' : '0');
+    render2fa();
+    U.toast(on ? 'Two-step verification enabled' : 'Two-step verification disabled', on ? 'success' : 'info');
+  });
+  render2fa();
+
+  const DEVICES = [['bxl-chrome', 'Chrome on Windows', 'HP Spectre 360', 'Switzerland', '10, July 2024 20:07'], ['bx-mobile', 'Chrome on iPhone', 'iPhone 12x', 'Australia', '13, July 2024 10:10'], ['bxl-android', 'Chrome on Android', 'Oneplus 9 Pro', 'Dubai', '14, July 2024 15:15'], ['bxl-apple', 'Chrome on MacOS', 'Apple iMac', 'India', '16, July 2024 16:17']];
+  $('devices').innerHTML = DEVICES.map(([icon, browser, device, loc, time]) => `
+    <tr><td class="text-nowrap"><i class="bx ${icon} fs-5 text-info align-middle me-2"></i><span class="text-heading">${browser}</span></td><td>${device}</td><td>${loc}</td><td class="text-nowrap">${time}</td></tr>`).join('');
+})();
+</script>
+</body>
+</html>

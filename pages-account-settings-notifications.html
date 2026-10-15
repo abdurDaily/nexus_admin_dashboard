@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notification Settings | Nexus Admin</title>
+  <script>try{document.documentElement.dataset.bsTheme=localStorage.getItem('nexus-theme')||'light'}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="assets/css/app.css" rel="stylesheet">
+</head>
+<body data-title="Account Settings">
+<main class="content">
+  <ul class="nav nav-pills mb-4">
+    <li class="nav-item"><a class="nav-link" href="pages-account-settings-account.html"><i class="bx bx-user"></i>Account</a></li>
+    <li class="nav-item"><a class="nav-link active" aria-current="page" href="pages-account-settings-notifications.html"><i class="bx bx-bell"></i>Notifications</a></li>
+  </ul>
+
+  <div class="card">
+    <div class="card-header">
+      <h5 class="card-title mb-1">Notifications</h5>
+      <span>We need permission from your browser to show notifications. <a href="#" id="requestPermission">Request Permission</a></span>
+    </div>
+    <form id="notifForm">
+      <div class="table-responsive border-bottom">
+        <table class="table">
+          <thead><tr><th>Type</th><th class="text-center">Email</th><th class="text-center">Browser</th><th class="text-center">App</th></tr></thead>
+          <tbody id="notifRows"></tbody>
+        </table>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-sm-6 col-md-4">
+            <label class="form-label" for="sendWhen">When should we send you notifications?</label>
+            <select class="form-select" id="sendWhen"><option>Only when I'm online</option><option>Anytime</option></select>
+          </div>
+          <div class="col-12 mt-4">
+            <button type="submit" class="btn btn-primary me-2">Save changes</button>
+            <button type="button" class="btn btn-label-secondary" id="discard">Discard</button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const CHANNELS = ['email', 'browser', 'app'];
+
+  function render() {
+    const rows = Store.get('notifications');
+    $('notifRows').innerHTML = rows.map((r, i) => `
+      <tr><td class="text-heading">${U.esc(r.type)}</td>${CHANNELS.map(c => `
+        <td class="text-center"><input class="form-check-input" type="checkbox" data-row="${i}" data-ch="${c}" ${r[c] ? 'checked' : ''} aria-label="${U.esc(r.type)} via ${c}"></td>`).join('')}</tr>`).join('');
+    $('sendWhen').value = Store.pref('notif-when') || "Only when I'm online";
+  }
+
+  $('notifForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const rows = Store.get('notifications');
+    $('notifRows').querySelectorAll('input').forEach(i => { rows[Number(i.dataset.row)][i.dataset.ch] = i.checked; });
+    Store.set('notifications', rows);
+    Store.pref('notif-when', $('sendWhen').value);
+    U.toast('Notification preferences saved');
+  });
+  $('discard').addEventListener('click', () => { render(); U.toast('Changes discarded', 'info'); });
+
+  $('requestPermission').addEventListener('click', async e => {
+    e.preventDefault();
+    if (!('Notification' in window)) { U.toast('This browser does not support notifications', 'warning'); return; }
+    const result = await Notification.requestPermission();
+    U.toast(`Notification permission: ${result}`, result === 'granted' ? 'success' : 'info');
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

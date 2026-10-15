@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat | Nexus Admin</title>
+  <script>try{document.documentElement.dataset.bsTheme=localStorage.getItem('nexus-theme')||'light'}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="assets/css/app.css" rel="stylesheet">
+</head>
+<body>
+<main class="content">
+  <div class="card app-chat" id="chatApp">
+    <aside class="chat-contacts" aria-label="Conversations">
+      <div class="d-flex align-items-center gap-2 p-3 border-bottom">
+        <span id="meAvatar"></span>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bx bx-search"></i></span>
+          <input type="search" class="form-control" id="contactSearch" placeholder="Search..." aria-label="Search conversations">
+        </div>
+        <button type="button" class="btn btn-icon btn-sm btn-text d-lg-none" data-close-contacts aria-label="Close"><i class="bx bx-x"></i></button>
+      </div>
+      <h6 class="text-primary px-4 pt-3 mb-2">Chats</h6>
+      <div class="chat-contact-list" id="contactList"></div>
+    </aside>
+
+    <section class="chat-main">
+      <div class="d-flex align-items-center gap-3 px-3 py-2 border-bottom" style="min-height:4.25rem">
+        <button type="button" class="btn btn-icon btn-sm btn-text d-lg-none" data-open-contacts aria-label="Show conversations"><i class="bx bx-menu"></i></button>
+        <div id="chatHeader" class="d-flex align-items-center gap-3 flex-grow-1"></div>
+        <button type="button" class="btn btn-icon btn-sm btn-text" aria-label="Call" data-soon><i class="bx bx-phone"></i></button>
+        <button type="button" class="btn btn-icon btn-sm btn-text" aria-label="Video call" data-soon><i class="bx bx-video"></i></button>
+        <div class="dropdown">
+          <button type="button" class="btn btn-icon btn-sm btn-text" data-bs-toggle="dropdown" aria-label="More"><i class="bx bx-dots-vertical-rounded"></i></button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><button class="dropdown-item" data-clear><i class="bx bx-trash"></i>Clear chat</button></li>
+          </ul>
+        </div>
+      </div>
+      <div class="chat-history" id="chatHistory" aria-live="polite"></div>
+      <form class="d-flex align-items-center gap-2 p-3 border-top" id="chatForm">
+        <input class="form-control" id="chatInput" placeholder="Type your message here..." aria-label="Message" autocomplete="off">
+        <button class="btn btn-primary d-flex align-items-center gap-1" type="submit"><span class="d-none d-sm-inline">Send</span><i class="bx bx-paper-plane"></i></button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+(() => {
+  const REPLIES = ['Got it, thanks!', 'Sounds good 👍', "I'll take a look and get back to you.", 'Perfect, talk soon.', 'Haha, nice one 😄', 'Can you share more details?'];
+  const app = document.getElementById('chatApp');
+  const history = document.getElementById('chatHistory');
+  const esc = U.esc;
+  const profile = Store.get('profile');
+  const me = `${profile.firstName} ${profile.lastName}`;
+  let chats = Store.get('chats');
+  let activeId = chats[0]?.id;
+  let query = '';
+  const save = () => Store.set('chats', chats);
+  const active = () => chats.find(c => c.id === activeId);
+  const time = iso => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const day = iso => {
+    const d = new Date(iso);
+    return d.toDateString() === new Date().toDateString() ? time(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  document.getElementById('meAvatar').innerHTML = U.avatar(me).replace('class="avatar', 'class="avatar avatar-status online');
+
+  function renderContacts() {
+    const list = chats
+      .filter(c => c.name.toLowerCase().includes(query))
+      .sort((a, b) => (b.messages.at(-1)?.time || '').localeCompare(a.messages.at(-1)?.time || ''));
+    document.getElementById('contactList').innerHTML = list.length ? list.map(c => {
+      const last = c.messages.at(-1);
+      return `<div class="chat-contact ${c.id === activeId ? 'active' : ''}" data-id="${c.id}" role="button" tabindex="0">
+        ${U.avatar(c.name).replace('class="avatar', `class="avatar avatar-status ${c.status}`)}
+        <div class="flex-grow-1" style="min-width:0">
+          <div class="d-flex justify-content-between"><span class="text-heading fw-medium text-truncate">${esc(c.name)}</span><small class="text-muted text-nowrap">${last ? day(last.time) : ''}</small></div>
+          <div class="d-flex justify-content-between gap-2"><small class="text-truncate">${last ? esc(last.text) : esc(c.about)}</small>${c.unread ? `<span class="badge rounded-pill bg-danger">${c.unread}</span>` : ''}</div>
+        </div>
+      </div>`;
+    }).join('') : '<p class="text-muted text-center py-4">No contacts found</p>';
+  }
+
+  function renderChat() {
+    const c = active();
+    if (!c) { history.innerHTML = ''; return; }
+    document.getElementById('chatHeader').innerHTML = `${U.avatar(c.name).replace('class="avatar', `class="avatar avatar-status ${c.status}`)}<div><h6 class="mb-0">${esc(c.name)}</h6><small class="text-muted">${esc(c.about)}</small></div>`;
+    history.innerHTML = c.messages.length ? c.messages.map(m => `
+      <div class="chat-msg ${m.me ? 'me' : ''}">
+        ${U.avatar(m.me ? me : c.name, 'avatar-sm')}
+        <div><div class="chat-bubble">${esc(m.text)}</div><div class="chat-time">${m.me ? '<i class="bx bx-check-double text-success"></i> ' : ''}${time(m.time)}</div></div>
+      </div>`).join('') : '<p class="text-center text-muted">No messages yet — say hi 👋</p>';
+    history.scrollTop = history.scrollHeight;
+  }
+
+  function select(id) {
+    activeId = id;
+    const c = active();
+    c.unread = 0;
+    save();
+    app.classList.remove('contacts-show');
+    renderContacts();
+    renderChat();
+    document.getElementById('chatInput').focus();
+  }
+
+  document.getElementById('contactList').addEventListener('click', e => {
+    const item = e.target.closest('.chat-contact');
+    if (item) select(Number(item.dataset.id));
+  });
+  document.getElementById('contactList').addEventListener('keydown', e => {
+    const item = e.target.closest('.chat-contact');
+    if (item && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(Number(item.dataset.id)); }
+  });
+  document.getElementById('contactSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); renderContacts(); });
+  app.querySelector('[data-open-contacts]').addEventListener('click', () => app.classList.add('contacts-show'));
+  app.querySelector('[data-close-contacts]').addEventListener('click', () => app.classList.remove('contacts-show'));
+  app.querySelectorAll('[data-soon]').forEach(b => b.addEventListener('click', () => U.toast('Calling is not available in this demo', 'info')));
+  app.querySelector('[data-clear]').addEventListener('click', async () => {
+    if (!(await U.confirm(`All messages with ${active().name} will be removed.`, { okText: 'Clear chat' }))) return;
+    active().messages = [];
+    save();
+    renderContacts();
+    renderChat();
+  });
+
+  document.getElementById('chatForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    const c = active();
+    if (!text || !c) return;
+    c.messages.push({ me: true, text, time: new Date().toISOString() });
+    input.value = '';
+    save();
+    renderContacts();
+    renderChat();
+    const replyTo = c.id;
+    setTimeout(() => {
+      const target = chats.find(x => x.id === replyTo);
+      if (!target) return;
+      target.messages.push({ me: false, text: REPLIES[Math.floor(Math.random() * REPLIES.length)], time: new Date().toISOString() });
+      if (replyTo !== activeId) target.unread = (target.unread || 0) + 1;
+      save();
+      renderContacts();
+      if (replyTo === activeId) renderChat();
+    }, 1200);
+  });
+
+  renderContacts();
+  renderChat();
+})();
+</script>
+</body>
+</html>

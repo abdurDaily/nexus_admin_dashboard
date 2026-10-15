@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create Invoice | Nexus Admin</title>
+  <script>try{document.documentElement.dataset.bsTheme=localStorage.getItem('nexus-theme')||'light'}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="assets/css/app.css" rel="stylesheet">
+</head>
+<body data-title="Create Invoice">
+<main class="content">
+  <form id="invoiceForm" class="row g-4" novalidate>
+    <div class="col-xl-9">
+      <div class="card">
+        <div class="card-body border-bottom d-flex flex-wrap justify-content-between gap-4">
+          <div>
+            <div class="invoice-brand mb-3"><i class="bx bxs-layer fs-2 text-primary"></i><span class="fs-4 fw-bold">Nexus</span></div>
+            <p class="mb-1">Office 149, 450 South Brand Brooklyn</p>
+            <p class="mb-0">San Diego County, CA 91905, USA</p>
+          </div>
+          <div style="min-width:16rem">
+            <h5 class="mb-3">Invoice #<span id="invNumber"></span></h5>
+            <div class="row g-2 align-items-center mb-2"><label class="col-5 form-label mb-0" for="iIssued">Date issued</label><div class="col-7"><input type="date" class="form-control" id="iIssued" required></div></div>
+            <div class="row g-2 align-items-center"><label class="col-5 form-label mb-0" for="iDue">Due date</label><div class="col-7"><input type="date" class="form-control" id="iDue" required><div class="invalid-feedback">Due date can't be before issue date.</div></div></div>
+          </div>
+        </div>
+
+        <div class="card-body border-bottom">
+          <h6 class="mb-3">Invoice to</h6>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label" for="iClient">Client name</label><input class="form-control" id="iClient" required><div class="invalid-feedback">Client name is required.</div></div>
+            <div class="col-md-6"><label class="form-label" for="iEmail">Client email</label><input type="email" class="form-control" id="iEmail" required><div class="invalid-feedback">Enter a valid email.</div></div>
+            <div class="col-md-6"><label class="form-label" for="iCompany">Company</label><input class="form-control" id="iCompany"></div>
+            <div class="col-md-6"><label class="form-label" for="iAddress">Address</label><input class="form-control" id="iAddress"></div>
+          </div>
+        </div>
+
+        <div class="card-body border-bottom">
+          <h6 class="mb-3">Items</h6>
+          <div id="items"></div>
+          <button type="button" class="btn btn-sm btn-label-primary" id="addItem"><i class="bx bx-plus me-1"></i>Add item</button>
+        </div>
+
+        <div class="card-body d-flex flex-wrap justify-content-between gap-4">
+          <div style="max-width:26rem" class="flex-grow-1">
+            <label class="form-label" for="iNotes">Note</label>
+            <textarea class="form-control" id="iNotes" rows="3">Thank you for your business!</textarea>
+          </div>
+          <dl class="row mb-0" style="min-width:16rem" id="totals"></dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-3">
+      <div class="card mb-4"><div class="card-body d-grid gap-2">
+        <button type="submit" class="btn btn-primary" id="saveBtn"><i class="bx bx-save me-1"></i>Save Invoice</button>
+        <a href="invoice-list.html" class="btn btn-label-secondary">Cancel</a>
+      </div></div>
+      <div class="card"><div class="card-body">
+        <div class="mb-3"><label class="form-label" for="iStatus">Status</label>
+          <select class="form-select" id="iStatus"><option>Draft</option><option>Sent</option><option>Paid</option><option>Partial Payment</option><option>Past Due</option></select></div>
+        <div class="mb-3"><label class="form-label" for="iDiscount">Discount (%)</label><input type="number" class="form-control" id="iDiscount" min="0" max="100" value="0"></div>
+        <div><label class="form-label" for="iTax">Tax (%)</label><input type="number" class="form-control" id="iTax" min="0" max="100" value="0"></div>
+      </div></div>
+    </div>
+  </form>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+(() => {
+  const invoices = Store.get('invoices');
+  const existing = invoices.find(i => i.id === Number(U.param('id')));
+  const $ = id => document.getElementById(id);
+  const itemsEl = $('items');
+  const form = $('invoiceForm');
+
+  const itemRow = (it = { desc: '', qty: 1, price: 0 }) => `
+    <div class="row g-2 align-items-end mb-3 item-row">
+      <div class="col-md-6"><label class="form-label">Item</label><input class="form-control i-desc" value="${U.esc(it.desc)}" required aria-label="Item description"></div>
+      <div class="col-4 col-md-2"><label class="form-label">Qty</label><input type="number" class="form-control i-qty" min="1" value="${it.qty}" required aria-label="Quantity"></div>
+      <div class="col-5 col-md-3"><label class="form-label">Cost ($)</label><input type="number" class="form-control i-price" min="0" step="0.01" value="${it.price}" required aria-label="Cost"></div>
+      <div class="col-3 col-md-1"><button type="button" class="btn btn-icon btn-label-danger i-remove" aria-label="Remove item"><i class="bx bx-x"></i></button></div>
+    </div>`;
+
+  const readItems = () => [...itemsEl.querySelectorAll('.item-row')].map(r => ({
+    desc: r.querySelector('.i-desc').value.trim(), qty: Number(r.querySelector('.i-qty').value) || 0, price: Number(r.querySelector('.i-price').value) || 0
+  }));
+
+  function renderTotals() {
+    const t = U.invoiceTotals({ items: readItems(), discount: $('iDiscount').value, tax: $('iTax').value });
+    $('totals').innerHTML = `
+      <dt class="col-6 fw-normal">Subtotal:</dt><dd class="col-6 text-end mb-1 text-heading">${U.money(t.subtotal)}</dd>
+      <dt class="col-6 fw-normal">Discount:</dt><dd class="col-6 text-end mb-1 text-heading">-${U.money(t.discount)}</dd>
+      <dt class="col-6 fw-normal">Tax:</dt><dd class="col-6 text-end mb-1 text-heading">${U.money(t.tax)}</dd>
+      <dt class="col-6 text-heading border-top pt-2">Total:</dt><dd class="col-6 text-end mb-0 fw-semibold text-heading border-top pt-2">${U.money(t.total)}</dd>`;
+  }
+
+  // Populate
+  const inv = existing || { id: Store.nextId(invoices), issued: U.today(), due: '', items: [{ desc: '', qty: 1, price: 0 }], discount: 0, tax: 0, status: 'Draft', notes: 'Thank you for your business!' };
+  if (existing) {
+    document.querySelector('.page-header h4').textContent = `Edit Invoice #${inv.id}`;
+    document.title = 'Edit Invoice | Nexus Admin';
+  }
+  if (!inv.due) { const d = new Date(); d.setDate(d.getDate() + 30); inv.due = d.toISOString().slice(0, 10); }
+  $('invNumber').textContent = inv.id;
+  $('iIssued').value = inv.issued;
+  $('iDue').value = inv.due;
+  $('iClient').value = inv.client || '';
+  $('iEmail').value = inv.email || '';
+  $('iCompany').value = inv.company || '';
+  $('iAddress').value = inv.address || '';
+  $('iNotes').value = inv.notes || '';
+  $('iStatus').value = inv.status;
+  $('iDiscount').value = inv.discount || 0;
+  $('iTax').value = inv.tax || 0;
+  itemsEl.innerHTML = inv.items.map(itemRow).join('');
+  renderTotals();
+
+  $('addItem').addEventListener('click', () => { itemsEl.insertAdjacentHTML('beforeend', itemRow()); renderTotals(); });
+  itemsEl.addEventListener('click', e => {
+    if (!e.target.closest('.i-remove')) return;
+    if (itemsEl.querySelectorAll('.item-row').length === 1) { U.toast('An invoice needs at least one item', 'warning'); return; }
+    e.target.closest('.item-row').remove();
+    renderTotals();
+  });
+  form.addEventListener('input', renderTotals);
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    $('iDue').setCustomValidity($('iDue').value && $('iDue').value < $('iIssued').value ? 'invalid' : '');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    Object.assign(inv, {
+      issued: $('iIssued').value, due: $('iDue').value, client: $('iClient').value.trim(), email: $('iEmail').value.trim(),
+      company: $('iCompany').value.trim(), address: $('iAddress').value.trim(), notes: $('iNotes').value.trim(),
+      status: $('iStatus').value, discount: Number($('iDiscount').value) || 0, tax: Number($('iTax').value) || 0, items: readItems()
+    });
+    if (!existing) invoices.unshift(inv);
+    Store.set('invoices', invoices);
+    U.flash(existing ? 'Invoice updated' : 'Invoice created');
+    location.href = `invoice-preview.html?id=${inv.id}`;
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Category List | Nexus Admin</title>
+  <script>try{document.documentElement.dataset.bsTheme=localStorage.getItem('nexus-theme')||'light'}catch(e){}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+  <link href="assets/css/app.css" rel="stylesheet">
+</head>
+<body>
+<main class="content">
+  <div class="card" id="categoryTable"></div>
+</main>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="categoryPanel" aria-labelledby="categoryPanelTitle">
+  <div class="offcanvas-header border-bottom">
+    <h5 class="offcanvas-title" id="categoryPanelTitle">Add Category</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form id="categoryForm" novalidate>
+      <div class="mb-3"><label class="form-label" for="cName">Title</label><input class="form-control" id="cName" required><div class="invalid-feedback">Title is required and must be unique.</div></div>
+      <div class="mb-4"><label class="form-label" for="cDesc">Description</label><textarea class="form-control" id="cDesc" rows="4"></textarea></div>
+      <button class="btn btn-primary me-2" type="submit">Save</button>
+      <button class="btn btn-label-secondary" type="button" data-bs-dismiss="offcanvas">Cancel</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/table.js"></script>
+<script src="assets/js/layout.js"></script>
+<script>
+(() => {
+  let categories = Store.get('categories');
+  let products = Store.get('products');
+  const orders = Store.get('orders');
+  const panel = new bootstrap.Offcanvas('#categoryPanel');
+  const form = document.getElementById('categoryForm');
+  const nameInput = document.getElementById('cName');
+  const descInput = document.getElementById('cDesc');
+  let editingId = null;
+
+  const productCount = c => products.filter(p => p.category === c.name).length;
+  const earnings = c => orders.reduce((s, o) => s + o.items.reduce((t, it) => {
+    const p = products.find(x => x.id === it.productId);
+    return t + (p && p.category === c.name ? p.price * it.qty : 0);
+  }, 0), 0);
+
+  const table = DataTable({
+    el: document.getElementById('categoryTable'),
+    getData: () => categories,
+    searchKeys: ['name', 'description'],
+    toolbar: '<button class="btn btn-primary" data-action="add"><i class="bx bx-plus me-1"></i>Add Category</button>',
+    columns: [
+      { label: 'Category', key: 'name', render: c => `<div class="d-flex align-items-center gap-3"><span class="avatar avatar-rounded bg-label-${U.colorFor(c.name)}"><i class="bx bx-category fs-5"></i></span><div><span class="text-heading fw-medium">${U.esc(c.name)}</span><small class="d-block text-muted">${U.esc(c.description)}</small></div></div>` },
+      { label: 'Total Products', sortValue: productCount, render: c => productCount(c) },
+      { label: 'Total Earnings', sortValue: earnings, render: c => `<span class="fw-medium text-heading">${U.money(earnings(c))}</span>` },
+      { label: 'Actions', render: () => '<div class="d-flex gap-1"><button class="btn btn-icon btn-sm btn-text" data-action="edit" aria-label="Edit"><i class="bx bx-edit"></i></button><button class="btn btn-icon btn-sm btn-text" data-action="delete" aria-label="Delete"><i class="bx bx-trash"></i></button></div>' }
+    ]
+  });
+
+  function open(cat) {
+    editingId = cat?.id ?? null;
+    form.classList.remove('was-validated');
+    nameInput.setCustomValidity('');
+    document.getElementById('categoryPanelTitle').textContent = cat ? 'Edit Category' : 'Add Category';
+    nameInput.value = cat?.name || '';
+    descInput.value = cat?.description || '';
+    panel.show();
+  }
+
+  document.getElementById('categoryTable').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'add') { open(); return; }
+    const cat = categories.find(c => c.id === Number(btn.closest('tr').dataset.id));
+    if (btn.dataset.action === 'edit') open(cat);
+    if (btn.dataset.action === 'delete') {
+      const n = productCount(cat);
+      if (n) { U.toast(`Move or delete the ${n} product(s) in "${cat.name}" first`, 'warning'); return; }
+      if (!(await U.confirm(`Category "${cat.name}" will be deleted.`))) return;
+      categories = categories.filter(c => c !== cat);
+      Store.set('categories', categories);
+      table.refresh();
+      U.toast('Category deleted');
+    }
+  });
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = nameInput.value.trim();
+    const duplicate = categories.some(c => c.name.toLowerCase() === name.toLowerCase() && c.id !== editingId);
+    nameInput.setCustomValidity(!name || duplicate ? 'invalid' : '');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+    if (editingId) {
+      const cat = categories.find(c => c.id === editingId);
+      // keep products linked when a category is renamed
+      products.forEach(p => { if (p.category === cat.name) p.category = name; });
+      Store.set('products', products);
+      Object.assign(cat, { name, description: descInput.value.trim() });
+    } else {
+      categories.push({ id: Store.nextId(categories), name, description: descInput.value.trim() });
+    }
+    Store.set('categories', categories);
+    table.refresh();
+    panel.hide();
+    U.toast(editingId ? 'Category updated' : 'Category added');
+  });
+})();
+</script>
+</body>
+</html>
